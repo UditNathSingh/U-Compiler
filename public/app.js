@@ -329,16 +329,15 @@ $('importBtn').onclick=async function(){
           if (!$('importModal')) {
               const div = document.createElement('div');
               div.id = 'importModal';
-              div.innerHTML = `<div style="display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
-                  <div style="background:var(--bg2); border:1px solid var(--line); padding:24px; border-radius:12px; width:300px; box-shadow:0 12px 36px rgba(0,0,0,0.4);">
-                     <h3 style="margin:0 0 16px 0; font-weight:500; font-size:16px;">Import from Google Drive</h3>
-                     <select id="importSelect" style="width:100%; padding:10px; margin-bottom:20px; background:var(--bg4); color:var(--t1); border:1px solid var(--line); border-radius:6px; outline:none; font-family:var(--font-sans); appearance:auto;"></select>
+              div.style.cssText = 'display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999999; align-items:center; justify-content:center;';
+              div.innerHTML = `<div style="background:var(--bg2); border:1px solid var(--line); padding:24px; border-radius:12px; width:300px; box-shadow:0 20px 50px rgba(0,0,0,0.8);">
+                     <h3 style="margin:0 0 16px 0; font-weight:500; font-size:16px; color:var(--t1);">Import from Google Drive</h3>
+                     <select id="importSelect" style="width:100%; padding:10px; margin-bottom:20px; background:var(--bg4); color:var(--t1); border:1px solid var(--line); border-radius:6px; outline:none; font-family:var(--font-sans); appearance:auto; -webkit-appearance:auto;"></select>
                      <div style="display:flex; justify-content:flex-end; gap:8px;">
-                         <button class="btn ghost" id="importCancelBtn">Cancel</button>
-                         <button class="btn primary" id="importConfirmBtnDynamic">Import</button>
+                         <button class="btn ghost" id="importCancelBtn" style="color:var(--t2);">Cancel</button>
+                         <button class="btn primary" id="importConfirmBtnDynamic" style="color:var(--bg);">Import</button>
                      </div>
-                  </div>
-              </div>`;
+                  </div>`;
               document.body.appendChild(div);
               
               $('importCancelBtn').onclick = () => $('importModal').style.display = 'none';
@@ -353,6 +352,23 @@ $('importBtn').onclick=async function(){
                       const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                           headers: { Authorization: `Bearer ${token}` }
                       });
+                      if (!fileRes.ok) throw new Error("Failed to download file");
+                      const text = await fileRes.text();
+                      ta.value = text;
+                      refresh();
+                      
+                      $('fileNameInput').innerText = filename;
+                      if($('fileNameDisplay')) $('fileNameDisplay').innerText = filename;
+                      
+                      $('importModal').style.display = 'none';
+                      $('importConfirmBtnDynamic').innerHTML = 'Import';
+                      showToast(`Imported ${filename}`);
+                  } catch (e) {
+                      showToast(e.message || 'Download failed.');
+                      $('importConfirmBtnDynamic').innerHTML = 'Import';
+                  }
+              };
+          });
                       if (!fileRes.ok) throw new Error("Failed to download file");
                       const text = await fileRes.text();
                       ta.value = text;
