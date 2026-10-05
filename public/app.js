@@ -357,25 +357,10 @@ $('importBtn').onclick=async function(){
                       ta.value = text;
                       refresh();
                       
-                      $('fileNameInput').innerText = filename;
-                      if($('fileNameDisplay')) $('fileNameDisplay').innerText = filename;
-                      
-                      $('importModal').style.display = 'none';
-                      $('importConfirmBtnDynamic').innerHTML = 'Import';
-                      showToast(`Imported ${filename}`);
-                  } catch (e) {
-                      showToast(e.message || 'Download failed.');
-                      $('importConfirmBtnDynamic').innerHTML = 'Import';
-                  }
-              };
-          });
-                      if (!fileRes.ok) throw new Error("Failed to download file");
-                      const text = await fileRes.text();
-                      ta.value = text;
-                      refresh();
-                      
-                      $('fileNameInput').innerText = filename;
-                      if($('fileNameDisplay')) $('fileNameDisplay').innerText = filename;
+                      const fnInput = document.getElementById('fileNameInput');
+                      if (fnInput) fnInput.innerText = filename;
+                      const fnDisplay = document.getElementById('fileNameDisplay');
+                      if (fnDisplay) fnDisplay.innerText = filename;
                       
                       $('importModal').style.display = 'none';
                       $('importConfirmBtnDynamic').innerHTML = 'Import';
@@ -405,36 +390,6 @@ $('importBtn').onclick=async function(){
       showToast(e.message || 'Import failed. Please log in.');
   }
 };
-
-if($('importConfirmBtn')) {
-    $('importConfirmBtn').onclick=async function(){
-        const fileId = $('importSelect').value;
-        const filename = $('importSelect').options[$('importSelect').selectedIndex].text;
-        if (!fileId) return;
-        
-        try {
-            const token = await getDriveToken();
-            $('importConfirmBtn').innerHTML = 'Downloading...';
-            const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (!fileRes.ok) throw new Error("Failed to download file");
-            const text = await fileRes.text();
-            ta.value = text;
-            refresh();
-            
-            $('fileNameInput').innerText = filename;
-            if($('fileNameDisplay')) $('fileNameDisplay').innerText = filename;
-            
-            $('importModal').style.display = 'none';
-            $('importConfirmBtn').innerHTML = 'Import';
-            showToast(`Imported ${filename}`);
-        } catch (e) {
-            showToast(e.message || 'Download failed.');
-            $('importConfirmBtn').innerHTML = 'Import';
-        }
-    };
-}
 
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
