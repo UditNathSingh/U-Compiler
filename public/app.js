@@ -338,7 +338,7 @@ $('importBtn').onclick=async function(){
                          <button class="btn primary" id="importConfirmBtnDynamic" style="color:var(--bg);">Import</button>
                      </div>
                   </div>`;
-              document.body.appendChild(div);
+              document.querySelector('.ide').appendChild(div);
               
               $('importCancelBtn').onclick = () => $('importModal').style.display = 'none';
               $('importConfirmBtnDynamic').onclick = async function() {
