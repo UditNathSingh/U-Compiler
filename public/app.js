@@ -298,19 +298,8 @@ $('saveBtn').onclick=async function(){
               body: content
           });
           if(!uRes.ok) throw new Error("Failed to upload content");
-      } else {
-          const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: filename, mimeType: 'text/plain' })
-          });
-          const metaData = await metaRes.json();
-          await fetch(`${uploadUrl}/${metaData.id}?uploadType=media`, {
-              method: 'PATCH',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
-              body: content
-          });
       }
+
       $('saveBtn').innerHTML = '<span class="blabel" style="color:var(--green)">✔ Saved</span>';
       setTimeout(() => { document.getElementById('saveBtn').innerHTML = originalHTML; }, 2000);
       showToast(`Saved ${filename}`);
