@@ -252,7 +252,8 @@ $('saveBtn').onclick=async function(){
   try {
       const token = await getDriveToken();
       const filename = $('fileNameInput').innerText.trim() || 'main.c';
-      showToast('Saving to Drive...');
+      const originalHTML = $('saveBtn').innerHTML;
+      $('saveBtn').innerHTML = SPIN + '<span class="blabel">Saving...</span>';
       
       const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -282,9 +283,13 @@ $('saveBtn').onclick=async function(){
               body: content
           });
       }
-      showToast(`Saved ${filename} to Google Drive!`);
+      $('saveBtn').innerHTML = '<span class="blabel" style="color:var(--green)">✔ Saved</span>';
+      setTimeout(() => { document.getElementById('saveBtn').innerHTML = originalHTML; }, 2000);
+      showToast(`Saved ${filename}`);
   } catch (e) {
       console.error(e);
+      document.getElementById('saveBtn').innerHTML = '<span class="blabel" style="color:var(--red)">X Error</span>';
+      setTimeout(() => { document.getElementById('saveBtn').innerHTML = '<span class="blabel">Save</span>'; }, 2000);
       showToast('Saving failed. Please log in.');
   }
 };
@@ -292,31 +297,63 @@ $('saveBtn').onclick=async function(){
 $('importBtn').onclick=async function(){
   try {
       const token = await getDriveToken();
-      const filename = $('fileNameInput').innerText.trim() || 'main.c';
-      showToast('Searching Drive...');
+      const originalHTML = $('importBtn').innerHTML;
+      $('importBtn').innerHTML = SPIN + '<span class="blabel">Loading...</span>';
       
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=trashed=false&orderBy=modifiedTime desc`, {
           headers: { Authorization: `Bearer ${token}` }
       });
       const searchData = await searchRes.json();
+      $('importBtn').innerHTML = originalHTML;
       
       if (searchData.files && searchData.files.length > 0) {
-          const fileId = searchData.files[0].id;
-          const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-              headers: { Authorization: `Bearer ${token}` }
+          const select = $('importSelect');
+          select.innerHTML = '';
+          searchData.files.forEach(f => {
+              const opt = document.createElement('option');
+              opt.value = f.id;
+              opt.textContent = f.name;
+              select.appendChild(opt);
           });
-          const text = await fileRes.text();
-          ta.value = text;
-          refresh();
-          showToast(`Imported ${filename} from Drive`);
+          $('importModal').style.display = 'flex';
       } else {
-          showToast(`${filename} not found in your Drive.`);
+          showToast('No files found in your Drive.');
       }
   } catch (e) {
       console.error(e);
+      document.getElementById('importBtn').innerHTML = '<span class="blabel">Import</span>';
       showToast('Import failed. Please log in.');
   }
 };
+
+if($('importConfirmBtn')) {
+    $('importConfirmBtn').onclick=async function(){
+        const fileId = $('importSelect').value;
+        const filename = $('importSelect').options[$('importSelect').selectedIndex].text;
+        if (!fileId) return;
+        
+        try {
+            const token = await getDriveToken();
+            $('importConfirmBtn').innerHTML = 'Downloading...';
+            const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const text = await fileRes.text();
+            ta.value = text;
+            refresh();
+            
+            $('fileNameInput').innerText = filename;
+            if($('fileNameDisplay')) $('fileNameDisplay').innerText = filename;
+            
+            $('importModal').style.display = 'none';
+            $('importConfirmBtn').innerHTML = 'Import';
+            showToast(`Imported ${filename}`);
+        } catch (e) {
+            showToast('Download failed.');
+            $('importConfirmBtn').innerHTML = 'Import';
+        }
+    };
+}
 
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
