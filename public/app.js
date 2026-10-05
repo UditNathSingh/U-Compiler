@@ -32,10 +32,21 @@ ta.value='#include <stdio.h>\n\nint main(void) {\n    // greet and credit\n    p
 
 async function getDriveToken() {
     if (gDriveAccessToken) return gDriveAccessToken;
-    if (!firebase.auth().currentUser) throw new Error("Not signed in");
-    const result = await firebase.auth().signInWithPopup(googleProvider);
-    if (result.credential) gDriveAccessToken = result.credential.accessToken;
-    return gDriveAccessToken;
+    if (!firebase.auth().currentUser) throw new Error("Not signed in to Firebase");
+    
+    // Try to get token via popup
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/drive.file');
+        const result = await firebase.auth().signInWithPopup(provider);
+        if (result.credential && result.credential.accessToken) {
+            gDriveAccessToken = result.credential.accessToken;
+            return gDriveAccessToken;
+        }
+        throw new Error("No access token provided by Google");
+    } catch(err) {
+        throw new Error("Popup blocked or sign-in failed. Click 'Sign out' then 'Sign in' again.");
+    }
 }
 
 /* ---------- helpers ---------- */
@@ -255,21 +266,38 @@ $('saveBtn').onclick=async function(){
       const originalHTML = $('saveBtn').innerHTML;
       $('saveBtn').innerHTML = SPIN + '<span class="blabel">Saving...</span>';
       
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
+            const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
           headers: { Authorization: `Bearer ${token}` }
       });
       const searchData = await searchRes.json();
+      if (!searchRes.ok) throw new Error(searchData.error?.message || "Failed to search Drive");
       
       const content = ta.value;
       const uploadUrl = 'https://upload.googleapis.com/upload/drive/v3/files';
       
       if (searchData.files && searchData.files.length > 0) {
           const fileId = searchData.files[0].id;
-          await fetch(`${uploadUrl}/${fileId}?uploadType=media`, {
+          const uRes = await fetch(`${uploadUrl}/${fileId}?uploadType=media`, {
               method: 'PATCH',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
               body: content
           });
+          if(!uRes.ok) throw new Error("Failed to update file");
+      } else {
+          const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: filename, mimeType: 'text/plain' })
+          });
+          const metaData = await metaRes.json();
+          if (!metaRes.ok) throw new Error(metaData.error?.message || "Failed to create file");
+          
+          const uRes = await fetch(`${uploadUrl}/${metaData.id}?uploadType=media`, {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+              body: content
+          });
+          if(!uRes.ok) throw new Error("Failed to upload content");
       } else {
           const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
               method: 'POST',
@@ -304,6 +332,7 @@ $('importBtn').onclick=async function(){
           headers: { Authorization: `Bearer ${token}` }
       });
       const searchData = await searchRes.json();
+      if (!searchRes.ok) throw new Error(searchData.error?.message || "Failed to list files");
       $('importBtn').innerHTML = originalHTML;
       
       if (searchData.files && searchData.files.length > 0) {
@@ -322,7 +351,7 @@ $('importBtn').onclick=async function(){
   } catch (e) {
       console.error(e);
       document.getElementById('importBtn').innerHTML = '<span class="blabel">Import</span>';
-      showToast('Import failed. Please log in.');
+      showToast(e.message || 'Import failed. Please log in.');
   }
 };
 
@@ -338,6 +367,7 @@ if($('importConfirmBtn')) {
             const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            if (!fileRes.ok) throw new Error("Failed to download file");
             const text = await fileRes.text();
             ta.value = text;
             refresh();
@@ -349,7 +379,7 @@ if($('importConfirmBtn')) {
             $('importConfirmBtn').innerHTML = 'Import';
             showToast(`Imported ${filename}`);
         } catch (e) {
-            showToast('Download failed.');
+            showToast(e.message || 'Download failed.');
             $('importConfirmBtn').innerHTML = 'Import';
         }
     };
