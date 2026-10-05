@@ -84,7 +84,7 @@ position:relative;width:100%;height:100vh;display:flex;flex-direction:column;bac
   <div class="hdr">
     <div class="logo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6.96582 7.52246C7.27077 7.21751 7.75375 7.1983 8.08105 7.46484L8.14453 7.52246L10.8232 10.2002C11.5102 10.8872 11.5102 12.0014 10.8232 12.6885L8.14453 15.3672L8.08105 15.4248C7.75377 15.6913 7.27075 15.6721 6.96582 15.3672C6.66114 15.0621 6.64234 14.5791 6.90918 14.252L6.96582 14.1885L9.64453 11.5098C9.68057 11.4736 9.68062 11.415 9.64453 11.3789L6.96582 8.7002C6.64116 8.37488 6.6411 7.84774 6.96582 7.52246Z" fill="currentColor"/><path d="M12.6807 15.2188C12.9414 14.8516 13.4375 14.7578 13.8047 15.0156L13.8711 15.0664L17.4961 18.6914C17.8555 19.0508 17.8555 19.6328 17.4961 19.9883C17.2344 20.3555 16.7383 20.4492 16.3711 20.1914L16.3047 20.1406L12.6797 16.5156C12.3203 16.1563 12.3203 15.5742 12.6807 15.2188Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M7 3.09961C4.84609 3.09961 3.09961 4.84609 3.09961 7V17C3.09961 19.1539 4.84609 20.9004 7 20.9004H17C19.1539 20.9004 20.9004 19.1539 20.9004 17V7C20.9004 4.84609 19.1539 3.09961 17 3.09961H7ZM7 4.90039H17C18.1598 4.90039 19.0996 5.8402 19.0996 7V17C19.0996 18.1598 18.1598 19.0996 17 19.0996H7C5.8402 19.0996 4.90039 18.1598 4.90039 17V7C4.90039 5.8402 5.8402 4.90039 7 4.90039Z" fill="currentColor"/></svg></div>
     <span class="wordmark">Ucompiler</span>
-    <span class="filechip">main.c</span>
+    <span class="filechip" id="fileNameInput" contenteditable="true" spellcheck="false" title="Click to rename">main.c</span>
     <div class="spacer"></div>
 
     <button class="btn primary" id="runBtn" title="Run (F5)">
@@ -141,14 +141,13 @@ position:relative;width:100%;height:100vh;display:flex;flex-direction:column;bac
         </button>
       </div>
       <div class="tb" id="tb">
-        <div class="tl dm">Edit <span style="color:var(--t2)">main.c</span> and press <span style="color:var(--t2)">Run</span> or hit <span style="color:var(--t2)">F5</span></div>
+        <div class="tl dm">Edit <span style="color:var(--t2)" id="fileNameDisplay">main.c</span> and press <span style="color:var(--t2)">Run</span> or hit <span style="color:var(--t2)">F5</span></div>
       </div>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast" hidden></div>
-<input type="file" id="fileIn" accept=".c,.h,.txt,.md" hidden>
 
 
 <!-- External libraries -->

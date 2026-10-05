@@ -12,8 +12,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const googleProvider = new firebase.auth.GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
 
 let authToken = null;
+let gDriveAccessToken = null;
 let ws = null;
 let currentCompileStartTime = 0;
 
@@ -26,6 +28,15 @@ var PLAY=runBtn.innerHTML;
 var SPIN='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
 
 ta.value='#include <stdio.h>\n\nint main(void) {\n    // greet and credit\n    printf("Welcome to Ucompiler \\n");\n    printf("Made By UditNath Singh \\n");\n    return 0;\n}';
+
+
+async function getDriveToken() {
+    if (gDriveAccessToken) return gDriveAccessToken;
+    if (!firebase.auth().currentUser) throw new Error("Not signed in");
+    const result = await firebase.auth().signInWithPopup(googleProvider);
+    if (result.credential) gDriveAccessToken = result.credential.accessToken;
+    return gDriveAccessToken;
+}
 
 /* ---------- helpers ---------- */
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -223,25 +234,89 @@ document.addEventListener('keydown',function(e){if(e.key==='F5'){e.preventDefaul
 $('clearBtn').onclick=function(){ term.clear(); };
 
 /* ---------- header buttons ---------- */
+$('fileNameInput').addEventListener('input', function() {
+  if (document.getElementById('fileNameDisplay')) {
+      document.getElementById('fileNameDisplay').innerText = this.innerText;
+  }
+});
+$('fileNameInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+});
+
 $('formatBtn').onclick=function(){
   ta.value=ta.value.split('\n').map(function(l){return l.replace(/\s+$/,'')}).join('\n');
-  refresh();showToast('Formatted main.c');
+  refresh();showToast('Formatted ' + $('fileNameInput').innerText);
 };
-$('saveBtn').onclick=function(){
-  var blob=new Blob([ta.value],{type:'text/plain'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download='main.c';a.click();
-  setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
-  showToast('Saved main.c');
+
+$('saveBtn').onclick=async function(){
+  try {
+      const token = await getDriveToken();
+      const filename = $('fileNameInput').innerText.trim() || 'main.c';
+      showToast('Saving to Drive...');
+      
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
+          headers: { Authorization: `Bearer ${token}` }
+      });
+      const searchData = await searchRes.json();
+      
+      const content = ta.value;
+      const uploadUrl = 'https://upload.googleapis.com/upload/drive/v3/files';
+      
+      if (searchData.files && searchData.files.length > 0) {
+          const fileId = searchData.files[0].id;
+          await fetch(`${uploadUrl}/${fileId}?uploadType=media`, {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+              body: content
+          });
+      } else {
+          const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: filename, mimeType: 'text/plain' })
+          });
+          const metaData = await metaRes.json();
+          await fetch(`${uploadUrl}/${metaData.id}?uploadType=media`, {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+              body: content
+          });
+      }
+      showToast(`Saved ${filename} to Google Drive!`);
+  } catch (e) {
+      console.error(e);
+      showToast('Saving failed. Please log in.');
+  }
 };
-$('importBtn').onclick=function(){$('fileIn').click()};
-$('fileIn').addEventListener('change',function(){
-  var f=this.files[0];if(!f)return;
-  var r=new FileReader();
-  r.onload=function(){ta.value=String(r.result);refresh();showToast('Imported '+f.name)};
-  r.readAsText(f);
-  this.value='';
-});
+
+$('importBtn').onclick=async function(){
+  try {
+      const token = await getDriveToken();
+      const filename = $('fileNameInput').innerText.trim() || 'main.c';
+      showToast('Searching Drive...');
+      
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
+          headers: { Authorization: `Bearer ${token}` }
+      });
+      const searchData = await searchRes.json();
+      
+      if (searchData.files && searchData.files.length > 0) {
+          const fileId = searchData.files[0].id;
+          const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+              headers: { Authorization: `Bearer ${token}` }
+          });
+          const text = await fileRes.text();
+          ta.value = text;
+          refresh();
+          showToast(`Imported ${filename} from Drive`);
+      } else {
+          showToast(`${filename} not found in your Drive.`);
+      }
+  } catch (e) {
+      console.error(e);
+      showToast('Import failed. Please log in.');
+  }
+};
 
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
@@ -264,6 +339,9 @@ firebase.auth().onAuthStateChanged((user) => {
 $('loginBtn').onclick=async function(){
     try {
         const result = await firebase.auth().signInWithPopup(googleProvider);
+        if (result.credential && result.credential.accessToken) {
+            gDriveAccessToken = result.credential.accessToken;
+        }
         const firstName = result.user.displayName.split(' ')[0];
         showToast('Signed in as ' + firstName);
     } catch (error) {
