@@ -377,7 +377,7 @@ $('importBtn').onclick=async function(){
           searchData.files.forEach(f => {
               const opt = document.createElement('option');
               opt.value = f.id;
-              opt.textContent = f.name;
+              opt.textContent = f.name; opt.style.color = "white"; opt.style.background = "black";
               select.appendChild(opt);
           });
           $('importModal').style.display = 'flex';
