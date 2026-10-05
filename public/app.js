@@ -290,7 +290,7 @@ $('saveBtn').onclick=async function(){
       console.error(e);
       document.getElementById('saveBtn').innerHTML = '<span class="blabel" style="color:var(--red)">X Error</span>';
       setTimeout(() => { document.getElementById('saveBtn').innerHTML = '<span class="blabel">Save</span>'; }, 2000);
-      showToast('Saving failed. Please log in.');
+      showToast(e.message || 'Saving failed. Please log in.');
   }
 };
 
