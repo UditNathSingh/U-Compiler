@@ -326,6 +326,7 @@ $('importBtn').onclick=async function(){
       
       if (searchData.files && searchData.files.length > 0) {
           
+          if ($('importModal')) $('importModal').remove();
           if (!$('importModal')) {
               const div = document.createElement('div');
               div.id = 'importModal';
