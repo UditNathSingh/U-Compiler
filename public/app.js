@@ -199,8 +199,37 @@ $('fileNameInput').addEventListener('keydown', function(e) {
 });
 
 $('formatBtn').onclick=function(){
-  editorInst.setValue(editorInst.getValue().split('\n').map(function(l){return l.replace(/\s+$/,'')}).join('\n'), -1);
-  showToast('Formatted ' + $('fileNameInput').innerText);
+  if (typeof js_beautify === 'function') {
+      var src = editorInst.getValue();
+      // js_beautify works excellent as a generic formatter for C-like syntax
+      var formatted = js_beautify(src, {
+          indent_size: 4,
+          indent_char: " ",
+          max_preserve_newlines: 2,
+          preserve_newlines: true,
+          keep_array_indentation: false,
+          break_chained_methods: false,
+          indent_scripts: "normal",
+          brace_style: "collapse",
+          space_before_conditional: true,
+          unescape_strings: false,
+          jslint_happy: false,
+          end_with_newline: true,
+          wrap_line_length: 0,
+          indent_inner_html: false,
+          comma_first: false,
+          e4x: false,
+          indent_empty_lines: false
+      });
+      // Small adjustment for C language specific quirks like `#include`
+      formatted = formatted.replace(/^(\s*)#\s*include/gm, '#include');
+      editorInst.setValue(formatted, -1);
+      showToast('Formatted ' + $('fileNameInput').innerText);
+  } else {
+      // Fallback
+      editorInst.setValue(editorInst.getValue().split('\n').map(function(l){return l.replace(/\s+$/,'')}).join('\n'), -1);
+      showToast('Formatted (Whitespace only)');
+  }
 };
 
 $('saveBtn').onclick=async function(){
