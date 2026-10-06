@@ -21,13 +21,25 @@ let currentCompileStartTime = 0;
 
 (function(){
 var $=function(id){return document.getElementById(id)};
-var ta=$('ta'),hl=$('hl'),gutin=$('gutin'),tb=$('tb'),tip=$('tip'),
+var tb=$('tb'),
     runBtn=$('runBtn'),toast=$('toast'),tstat=$('tstat'),tdot=$('tdot');
 var tt=null;
 var PLAY=runBtn.innerHTML;
 var SPIN='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
 
-ta.value='#include <stdio.h>\n\nint main(void) {\n    // greet and credit\n    printf("Welcome to Ucompiler \\n");\n    printf("Made By UditNath Singh \\n");\n    return 0;\n}';
+// Ace Editor Setup
+var editorInst = ace.edit("editor");
+editorInst.setTheme("ace/theme/tomorrow_night");
+editorInst.session.setMode("ace/mode/c_cpp");
+editorInst.setOptions({
+    fontFamily: "var(--font-mono)",
+    fontSize: "13px",
+    showPrintMargin: false,
+    useSoftTabs: true,
+    tabSize: 4
+});
+editorInst.setValue('#include <stdio.h>\n\nint main(void) {\n    // greet and credit\n    printf("Welcome to Ucompiler \\n");\n    printf("Made By UditNath Singh \\n");\n    return 0;\n}', -1);
+editorInst.setReadOnly(true);
 
 
 async function getDriveToken() {
@@ -55,79 +67,6 @@ function showToast(m){
   toast.textContent=m;toast.hidden=false;toast.style.opacity='1';
   clearTimeout(tt);tt=setTimeout(function(){toast.style.opacity='0';setTimeout(function(){toast.hidden=true},200)},1700);
 }
-function guides(prefix){
-  var n=Math.floor(prefix.length/4),out=esc(prefix.slice(0,4));
-  for(var i=1;i<n;i++)out+='<span class="ig">    </span>';
-  return out+esc(prefix.slice(n*4));
-}
-function hlLine(s){
-  var m=s.match(/^(\s*)/),lead=m?m[0]:'';
-  var rest=esc(s.slice(lead.length));
-  rest=rest.replace(/(\/\/.*)|("(?:[^"\\]|\\.)*"?)|(#[a-zA-Z]+)|\b(int|void|char|return|if|else|for|while|sizeof|float|double|long|short|unsigned|struct|define|include)\b|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*(?=\s*\())/g,
-   function(mm,com,st,pre,kw,num,fn){
-    if(com)return '<span class="tk-com">'+com+'</span>';
-    if(st)return '<span class="tk-str">'+st+'</span>';
-    if(pre)return '<span class="tk-pre">'+pre+'</span>';
-    if(kw)return '<span class="tk-kw">'+kw+'</span>';
-    if(num)return '<span class="tk-num">'+num+'</span>';
-    if(fn)return '<span class="tk-fn">'+fn+'</span>';
-    return mm;
-   });
-  rest=rest.replace(/(&lt;[a-zA-Z0-9./_]+&gt;)/g,'<span class="tk-inc">$1</span>');
-  return guides(lead)+rest;
-}
-function analyze(src){
-  var errs=[];
-  src.split('\n').forEach(function(l,i){
-    var t=l.trim();
-    if(!t)return;
-    if(t.indexOf('//')===0||t[0]==='#')return;
-    if(t==='{'||t.slice(-1)==='{')return;
-    if(t.slice(-1)!==';'&&t.slice(-1)!=='}')errs.push({line:i+1,msg:"expected ';' before end of line"});
-  });
-  return errs;
-}
-
-/* ---------- render ---------- */
-function sync(){
-  var st=ta.scrollTop,sl=ta.scrollLeft;
-  hl.style.transform='translate('+(-sl)+'px,'+(-st)+'px)';
-  gutin.style.transform='translateY('+(-st)+'px)';
-}
-function refresh(){
-  var src=ta.value,errs=analyze(src);
-  var lines=src.split('\n'),h='',g='';
-  for(var i=0;i<lines.length;i++){
-    var ln=i+1,l=hlLine(lines[i]);
-    var err=errs.filter(function(e){return e.line===ln})[0];
-    if(err)l='<span class="tk-errl">'+(l||' ')+'</span>';
-    h+=(l||' ')+'\n';
-    g+='<div class="gnum">'+(err?'<span class="gerr" data-ln="'+ln+'" title="Quick fix: insert \';\'"></span>':'')+ln+'</div>';
-  }
-  hl.innerHTML=h;gutin.innerHTML=g;sync();
-}
-gutin.addEventListener('click',function(e){
-  var d=e.target.closest?e.target.closest('.gerr'):null;
-  if(!d)return;
-  var n=+d.getAttribute('data-ln'),lines=ta.value.split('\n');
-  if(lines[n-1].slice(-1)!==';'){lines[n-1]+=';';ta.value=lines.join('\n');refresh();showToast("Inserted ';' at line "+n)}
-});
-ta.addEventListener('input',refresh);
-ta.addEventListener('scroll',sync);
-ta.addEventListener('keydown',function(e){
-  if(e.key==='Tab'){e.preventDefault();
-    var s=ta.selectionStart;
-    ta.value=ta.value.slice(0,s)+'    '+ta.value.slice(ta.selectionEnd);
-    ta.selectionStart=ta.selectionEnd=s+4;refresh();
-  }
-});
-ta.addEventListener('mousemove',function(e){
-  var y=e.offsetY-12+ta.scrollTop,ln=Math.floor(y/21)+1;
-  var er=analyze(ta.value).filter(function(x){return x.line===ln})[0];
-  if(er){tip.hidden=false;tip.textContent='main.c:'+ln+'  '+er.msg;tip.style.top=(12+(ln-1)*21-ta.scrollTop)+'px'}
-  else tip.hidden=true;
-});
-ta.addEventListener('mouseleave',function(){tip.hidden=true});
 
 /* ---------- terminal and websocket ---------- */
 function connectWebSocket() {
@@ -189,6 +128,7 @@ setTimeout(() => {
 }, 100);
 
 window.addEventListener('resize', () => {
+    editorInst.resize();
     fitAddon.fit();
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
@@ -217,7 +157,11 @@ async function doRun(){
       return;
   }
   if(runBtn.disabled) return;
-  var src=ta.value;
+  if (!authToken) {
+      showToast("Please sign in to compile code");
+      return;
+  }
+  var src=editorInst.getValue();
   runBtn.disabled=true;runBtn.classList.add('busy');runBtn.innerHTML=SPIN+'<span class="blabel">Run</span>';
   tstat.textContent='running';tdot.style.background='var(--red)';
   term.clear();
@@ -255,8 +199,8 @@ $('fileNameInput').addEventListener('keydown', function(e) {
 });
 
 $('formatBtn').onclick=function(){
-  ta.value=ta.value.split('\n').map(function(l){return l.replace(/\s+$/,'')}).join('\n');
-  refresh();showToast('Formatted ' + $('fileNameInput').innerText);
+  editorInst.setValue(editorInst.getValue().split('\n').map(function(l){return l.replace(/\s+$/,'')}).join('\n'), -1);
+  showToast('Formatted ' + $('fileNameInput').innerText);
 };
 
 $('saveBtn').onclick=async function(){
@@ -266,14 +210,15 @@ $('saveBtn').onclick=async function(){
       const originalHTML = $('saveBtn').innerHTML;
       $('saveBtn').innerHTML = SPIN + '<span class="blabel">Saving...</span>';
       
-            const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${filename}' and trashed=false`, {
+            const q = encodeURIComponent(`name='${filename}' and trashed=false`);
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}`, {
           headers: { Authorization: `Bearer ${token}` }
       });
       const searchData = await searchRes.json();
       if (!searchRes.ok) throw new Error(searchData.error?.message || "Failed to search Drive");
-      
-      const content = ta.value;
-      const uploadUrl = 'https://upload.googleapis.com/upload/drive/v3/files';
+
+      const content = editorInst.getValue();
+      const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files';
       
       if (searchData.files && searchData.files.length > 0) {
           const fileId = searchData.files[0].id;
@@ -282,22 +227,26 @@ $('saveBtn').onclick=async function(){
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
               body: content
           });
-          if(!uRes.ok) throw new Error("Failed to update file");
+          if(!uRes.ok) { let errTxt = await uRes.text(); throw new Error("Update error " + uRes.status + ": " + errTxt); }
       } else {
-          const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: filename, mimeType: 'text/plain' })
+          const boundary = "ucompiler_boundary_xyz";
+          const body = "--" + boundary + "\r\n"
+                     + "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+                     + JSON.stringify({ name: filename, mimeType: "text/plain" }) + "\r\n"
+                     + "--" + boundary + "\r\n"
+                     + "Content-Type: text/plain\r\n\r\n"
+                     + content + "\r\n"
+                     + "--" + boundary + "--";
+
+          const uRes = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+              method: "POST",
+              headers: { 
+                  "Authorization": `Bearer ${token}`, 
+                  "Content-Type": `multipart/related; boundary=${boundary}` 
+              },
+              body: body
           });
-          const metaData = await metaRes.json();
-          if (!metaRes.ok) throw new Error(metaData.error?.message || "Failed to create file");
-          
-          const uRes = await fetch(`${uploadUrl}/${metaData.id}?uploadType=media`, {
-              method: 'PATCH',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
-              body: content
-          });
-          if(!uRes.ok) throw new Error("Failed to upload content");
+          if(!uRes.ok) { let errTxt = await uRes.text(); throw new Error("Upload error " + uRes.status + ": " + errTxt); }
       }
 
       $('saveBtn').innerHTML = '<span class="blabel" style="color:var(--green)">✔ Saved</span>';
@@ -317,7 +266,8 @@ $('importBtn').onclick=async function(){
       const originalHTML = $('importBtn').innerHTML;
       $('importBtn').innerHTML = SPIN + '<span class="blabel">Loading...</span>';
       
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=trashed=false&orderBy=modifiedTime desc`, {
+      const qParams = 'q=' + encodeURIComponent('trashed=false') + '&orderBy=' + encodeURIComponent('modifiedTime desc');
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?${qParams}`, {
           headers: { Authorization: `Bearer ${token}` }
       });
       const searchData = await searchRes.json();
@@ -355,9 +305,8 @@ $('importBtn').onclick=async function(){
                       });
                       if (!fileRes.ok) throw new Error("Failed to download file");
                       const text = await fileRes.text();
-                      ta.value = text;
-                      refresh();
-                      
+                      editorInst.setValue(text, -1);
+
                       const fnInput = document.getElementById('fileNameInput');
                       if (fnInput) fnInput.innerText = filename;
                       const fnDisplay = document.getElementById('fileNameDisplay');
@@ -396,6 +345,7 @@ firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         user.getIdToken().then(token => {
             authToken = token;
+            editorInst.setReadOnly(false);
             const firstName = user.displayName.split(' ')[0];
             $('loginBtn').hidden = true;
             $('logoutBtn').hidden = false;
@@ -404,6 +354,7 @@ firebase.auth().onAuthStateChanged((user) => {
         });
     } else {
         authToken = null;
+        editorInst.setReadOnly(true);
         $('loginBtn').hidden = false;
         $('logoutBtn').hidden = true;
         term.writeln('\r\n\x1b[33m[LOCKED] Please sign in with Google to unlock compiling.\x1b[0m');
@@ -430,5 +381,4 @@ $('logoutBtn').onclick=function(){
     });
 };
 
-refresh();
 })();

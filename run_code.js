@@ -130,8 +130,8 @@ exports.runCode = (code, ws, cols, rows) => {
     
     const isLinux = process.platform === 'linux';
     if (isLinux) {
-        // Build raw command because shell: true executes through /bin/sh which doesn't support multiple ulimit args
-        const gccCmd = 'ulimit -t 20; ulimit -v 512000; gcc ' + compileArgs.map(a => '"' + a + '"').join(' ');
+        // Build raw command because shell: true executes through sh
+        const gccCmd = 'ulimit -t 20 -v 512000 && gcc ' + compileArgs.map(a => '"' + a + '"').join(' ');
         compileProcess = cp.spawn(gccCmd, [], spawnOpts);
     } else {
         compileProcess = cp.spawn('gcc', compileArgs, { ...spawnOpts, shell: false });
@@ -183,7 +183,7 @@ exports.runCode = (code, ws, cols, rows) => {
             // Limit memory to 256MB and created files to 10MB to prevent DoS, if on Linux
             let executablePath = `"${outputFile}"`;
             if (isLinux) {
-                executablePath = `ulimit -v 256000; ulimit -f 10000; ulimit -u 128; ulimit -t 15; exec "${outputFile}"`;
+                executablePath = `ulimit -v 256000 -f 10000 -u 128 -t 15 && "${outputFile}"`;
             }
 
             const secureEnv = { PATH: process.env.PATH, TERM: 'xterm-color' };
@@ -217,7 +217,7 @@ exports.runCode = (code, ws, cols, rows) => {
             
             if (isLinux) {
                 cpOpts.shell = true;
-                const cmd = `ulimit -v 256000; ulimit -f 10000; ulimit -u 128; ulimit -t 15; exec "${outputFile}"`;
+                const cmd = `ulimit -v 256000 -f 10000 -u 128 -t 15 && "${outputFile}"`;
                 ptyProcess = cp.spawn(cmd, [], cpOpts);
             } else {
                 ptyProcess = cp.spawn(outputFile, [], cpOpts);
